@@ -1,4 +1,3 @@
-`define BYTE_WIDTH 8
 `define REG_LENGTH 32
 `define REG_NUMBER 16
 `define ADDR_LEN_4 4
@@ -34,4 +33,5 @@ module REG_32 (
 
 endmodule
 
-// how to change addr  0 1 0 1 to bits instead of '5'
+// The addr should be decoded to the bitwise accessable addr, instead of
+// integer value

@@ -1,6 +1,6 @@
 `define MEM_WIDTH 8
-`define MEM_DEPTH 8
-`define WORD_NUMB 256
+`define MEM_DEPTH 2
+`define WORD_NUMB 4
 
 
 module MEM_256bytes (
@@ -11,10 +11,10 @@ module MEM_256bytes (
     input  write_en,
     input  read_en,
     input  [`MEM_WIDTH - 1 : 0] write_in,
-    output [`MEM_WIDTH - 1 : 0] read_out
+    output reg [`MEM_WIDTH - 1 : 0] read_out
 );
 
-    wire [`MEM_WIDTH - 1 : 0] mem_array [`WORD_NUMB - 1 : 0];
+    reg [`MEM_WIDTH - 1 : 0] mem_array [`WORD_NUMB - 1 : 0];
 
 
     always @(*) begin
@@ -22,10 +22,10 @@ module MEM_256bytes (
         // (read_en & write_en == 1) VIOLATION IS NOT ALLOWED //
 
         if (write_en)
-            mem_array[addr] = write_in;
+            mem_array[addr] <= write_in;
 
         else if (read_en)
-            read_out = mem_array[addr];
+            read_out <= mem_array[addr];
     
     end
 
