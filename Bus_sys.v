@@ -8,15 +8,18 @@
 
 
 module SYS_BUS (
+// THINK ABOUT A INTERRUPT-DRIVEN STATE MACHINE. //
 
     input clk,
     input rst,
-    input ale,
-    input rd_en,
-    input wr_en,
+    input bus_read_en,
+    input bus_write_en,
+    input data_input,
+    output reg data_output,
 
-    
 );
+
+    reg bus_data_temp;
 
 endmodule
 
@@ -29,25 +32,31 @@ module DL_BUS (
     input ale_en,
     input read_en,
     input write_en,
-    input [`MEM_WIDTH - 1 : 0] write_in,
-    output reg [`MEM_WIDTH - 1 : 0] read_out
+    input [`MEM_WIDTH - 1 : 0] dl_bus_write_in,
+    output reg [`MEM_WIDTH - 1 : 0] dl_bus_read_out
 );
 
-    reg [`MEM_WIDTH - 1 : 0] bus_data;
+    reg [`MEM_WIDTH - 1 : 0] dl_bus_data;
 
     always @(posedge clk ) begin
 
-        if (rst)
-            bus_data <= {`MEM_WIDTH{1'b0}};
+        if (rst) begin
+            dl_bus_data <= {`MEM_WIDTH{1'b0}};
+            dl_bus_read_out <= {`MEM_WIDTH{1'b0}};
+        end
 
-        else if (ale_en)
-            bus_data <= bus_data;
+        else if (ale_en) begin
+            dl_bus_data <= {`MEM_WIDTH{1'b0}};
+            dl_bus_read_out <= {`MEM_WIDTH{1'b0}};
+        end
 
-        else if (write_en)
-            bus_data <= write_in;
+        else if (write_en) begin
+            dl_bus_data <= dl_bus_write_in;
+            dl_bus_read_out <= {`MEM_WIDTH{1'b0}};
+        end
 
         else if (read_en)
-            read_out <= bus_data;
+            dl_bus_read_out <= dl_bus_data;
      
     end
 
@@ -57,25 +66,35 @@ endmodule
 
 // Address line BUS. //
 module AL_BUS (
-
+    
     input clk, 
     input rst,
     input ale_en,
-    input [`ADDR_BUS_WIDTH -1 : 0] addr_bus_in,
-    output reg  [`ADDR_BUS_WIDTH -1 : 0] addr_bus_out
+    input read_en,
+    input [`ADDR_BUS_WIDTH -1 : 0] al_bus_write_in,
+    output reg  [`ADDR_BUS_WIDTH -1 : 0] al_bus_read_out
 );
+    reg [`ADDR_BUS_WIDTH -1 : 0] al_bus_data;
 
 always @(posedge clk) begin
 
-    if (rst)
-        addr_bus_out <= {`ADDR_BUS_WIDTH{1'b0}};
+    if (rst) begin
+        al_bus_data <= {`ADDR_BUS_WIDTH{1'b0}};
+        al_bus_read_out <= {`ADDR_BUS_WIDTH{1'b0}};
+    end
     
-    else if (ale_en)
-        addr_bus_out <= addr_bus_in;
+    else if (~read_en & ale_en) begin
+        al_bus_data <= al_bus_write_in;
+        al_bus_read_out <= {`ADDR_BUS_WIDTH{1'b0}};        
+    end
+
+
+    else if (read_en & ~ale_en) begin
+        al_bus_read_out <= al_bus_data;        
+    end
 
     else
-        addr_bus_out <= addr_bus_out;
-
+        al_bus_read_out <= {`ADDR_BUS_WIDTH{1'b0}};
 end
 
 endmodule
