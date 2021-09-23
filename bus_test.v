@@ -1,5 +1,4 @@
 // 400 Mbps System Bus //
-
 `include "MEM32.v"
 
 `define ADDR_BUS_WIDTH 8  // this should be equal to memory depth. //
@@ -8,8 +7,7 @@
 
 
 
-module SYS_BUS (
-// THINK ABOUT A INTERRUPT-DRIVEN STATE MACHINE. //
+module SYS_BUS_TEST (
 
     input clk,
     input rst,
@@ -18,7 +16,17 @@ module SYS_BUS (
     input bus_write_en,
     input [`MEM_DEPTH - 1 : 0] addr_input,
     input [`MEM_WIDTH - 1 : 0] data_write,
-    output reg [`MEM_WIDTH - 1 : 0] data_read
+    output reg [`MEM_WIDTH - 1 : 0] data_read,
+
+
+    // Virtual //
+    output reg [4:0] state_now,
+    output reg [4:0] state_nxt,
+    output reg bus_ready,
+    output reg [`MEM_DEPTH - 1 : 0] bus_addr,
+    output reg io_write_en,
+    output reg io_read_en,
+    output reg [`MEM_WIDTH - 1 : 0] bus_data_write
 );
 
     parameter s_idle = 0;
@@ -27,20 +35,8 @@ module SYS_BUS (
     parameter s_recv = 3;
     parameter s_comp = 4;
 
-
-    reg [4:0] state_now; 
-    reg [4:0] state_nxt;
-    reg bus_ready;
-
-    // registered interface with memory. //
-    reg [`MEM_DEPTH - 1 : 0] bus_addr;
-    reg io_write_en;
-    reg io_read_en;
-    reg [`MEM_WIDTH - 1 : 0] bus_data_write;
-    reg [`MEM_WIDTH - 1 : 0] bus_data_read_latch;
-
     wire [`MEM_WIDTH - 1 : 0] bus_data_read;
-
+    reg [`MEM_WIDTH - 1 : 0] bus_data_read_latch;
 
     MEM_256bytes MEM_MAIN (
         .addr(bus_addr),
@@ -48,6 +44,7 @@ module SYS_BUS (
         .read_en(io_read_en),
         .write_in(bus_data_write),
         .read_out(bus_data_read)
+
         );
 
 
@@ -129,91 +126,3 @@ module SYS_BUS (
 
 
 endmodule
-
-
-
-
-
-
-
-
-
-
-
-
-//  ******************************* ABSTRACT ****************************** //
-// Data Line BUS. //
-module DL_BUS (
-    input clk,
-    input rst,
-    input ale_en,
-    input read_en,
-    input write_en,
-    input [`MEM_WIDTH - 1 : 0] dl_bus_write_in,
-    output reg [`MEM_WIDTH - 1 : 0] dl_bus_read_out
-);
-
-    reg [`MEM_WIDTH - 1 : 0] dl_bus_data;
-
-    always @(posedge clk ) begin
-
-        if (rst) begin
-            dl_bus_data <= {`MEM_WIDTH{1'b0}};
-            dl_bus_read_out <= {`MEM_WIDTH{1'b0}};
-        end
-
-        else if (ale_en) begin
-            dl_bus_data <= {`MEM_WIDTH{1'b0}};
-            dl_bus_read_out <= {`MEM_WIDTH{1'b0}};
-        end
-
-        else if (write_en) begin
-            dl_bus_data <= dl_bus_write_in;
-            dl_bus_read_out <= {`MEM_WIDTH{1'b0}};
-        end
-
-        else if (read_en)
-            dl_bus_read_out <= dl_bus_data;
-     
-    end
-
-endmodule
-
-
-
-// Address line BUS. //
-module AL_BUS (
-    
-    input clk, 
-    input rst,
-    input ale_en,
-    input read_en,
-    input [`ADDR_BUS_WIDTH -1 : 0] al_bus_write_in,
-    output reg  [`ADDR_BUS_WIDTH -1 : 0] al_bus_read_out
-);
-    reg [`ADDR_BUS_WIDTH -1 : 0] al_bus_data;
-
-always @(posedge clk) begin
-
-    if (rst) begin
-        al_bus_data <= {`ADDR_BUS_WIDTH{1'b0}};
-        al_bus_read_out <= {`ADDR_BUS_WIDTH{1'b0}};
-    end
-    
-    else if (~read_en & ale_en) begin
-        al_bus_data <= al_bus_write_in;
-        al_bus_read_out <= {`ADDR_BUS_WIDTH{1'b0}};        
-    end
-
-
-    else if (read_en & ~ale_en) begin
-        al_bus_read_out <= al_bus_data;        
-    end
-
-    else
-        al_bus_read_out <= {`ADDR_BUS_WIDTH{1'b0}};
-end
-
-endmodule
-
-

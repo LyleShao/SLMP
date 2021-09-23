@@ -11,10 +11,10 @@ module MEM_256bytes (
     input  write_en,
     input  read_en,
     input  [`MEM_WIDTH - 1 : 0] write_in,
-    output [`MEM_WIDTH - 1 : 0] read_out
+    output reg [`MEM_WIDTH - 1 : 0] read_out
 );
 
-    wire [`MEM_WIDTH - 1 : 0] mem_array [`WORD_NUMB - 1 : 0];
+    reg [`MEM_WIDTH - 1 : 0] mem_array [`WORD_NUMB - 1 : 0];
 
 
     always @(*) begin
@@ -26,6 +26,8 @@ module MEM_256bytes (
 
         else if (read_en)
             read_out = mem_array[addr];
+
+        else read_out = {`MEM_WIDTH{1'b0}};
     
     end
 
