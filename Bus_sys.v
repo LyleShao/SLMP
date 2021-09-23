@@ -12,14 +12,83 @@ module SYS_BUS (
 
     input clk,
     input rst,
+    input ale_en,
     input bus_read_en,
     input bus_write_en,
-    input data_input,
-    output reg data_output,
-
+    input addr_input,
+    input data_write,
+    output reg data_read
 );
 
+    parameter s_idle = 0;
+    parameter s_alen = 1;
+    parameter s_tras = 2;
+    parameter s_recv = 3;
+    parameter s_comp = 4;
+
+
+    reg [4:0] state_now; 
+    reg [4:0] state_nxt;
+    reg bus_ready;
+    reg bus_addr_temp;
     reg bus_data_temp;
+
+
+    always @(*) begin
+
+        case state_now:
+            5'b00001: begin
+                bus_ready <= 1'b1;
+                bus_addr_temp <= 0;
+                bus_data_temp <= 0;
+            end
+
+            5'b00010: begin
+                bus_ready <= 1'b0;
+                bus_addr_temp <= addr_input;
+            end
+
+            5'b00100: begin
+                bus_ready <= 1'b0;
+                data_read <= 
+
+
+            end
+
+
+
+
+
+        
+    end
+
+
+
+    // state transitions //
+    always @(*) begin
+
+        state_nxt[s_idle] = state[s_idle]&(~ale_en) | state[s_comp]&(~ale_en);
+        state_nxt[s_alen] = state[s_idle]&(s_alen);
+        state_nxt[s_tras] = state[s_alen]&(bus_read_en);
+        state_nxt[s_recv] = state[s_alen]&(bus_write_en);
+        state_nxt[s_comp] = state[s_tras]&bus_ready | state[s_recv]&bus_ready;
+        
+    end
+
+    always @(posedge clk) begin
+
+        if(rst) begin
+            data_output <= 0;
+            state_now <= 5'b00001; // 1-hot, configurable. //
+        end
+
+        else begin
+            state_now <= state_nxt;
+        end
+
+    end
+
+
 
 endmodule
 
