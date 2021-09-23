@@ -30,36 +30,66 @@ module SYS_BUS (
     reg [4:0] state_now; 
     reg [4:0] state_nxt;
     reg bus_ready;
-    reg bus_addr_temp;
-    reg bus_data_temp;
+
+    reg bus_addr;
+    reg io_write_en;
+    reg io_read_en;
+    reg bus_data_write;
+    reg bus_data_read; // connected to outputs of IO. //
+
+
+    MEM_256bytes MEM_MAIN (
+        .addr(bus_addr),
+        .write_en(io_write_en),
+        .read_en(io_read_en),
+        .write_in(bus_data_write),
+        .read_out(bus_data_read)
+
+        );
 
 
     always @(*) begin
-
-        case state_now:
-            5'b00001: begin
+        
+        case (state_now)
+            5'b00001: begin // idle state //
                 bus_ready <= 1'b1;
-                bus_addr_temp <= 0;
-                bus_data_temp <= 0;
+                bus_addr <= 0;
+                io_read_en <= 0;
+                io_write_en <= 0;
             end
 
             5'b00010: begin
                 bus_ready <= 1'b0;
-                bus_addr_temp <= addr_input;
+                bus_addr <= addr_input;
+                io_read_en <= state_nxt[s_tras];
+                io_write_en <= state_nxt[s_recv];
             end
 
-            5'b00100: begin
+            5'b00100: begin // read data from IO. //
                 bus_ready <= 1'b0;
-                data_read <= 
+                io_read_en <= 1'b1;
+            end
 
+            5'b01000: begin // write data to IO. //
+                bus_ready <= 1'b0;
+                io_write_en <= 1'b1;
+            end
+
+            5'b10000: begin
+                bus_ready <= 1'b1;
+                io_read_en <= 0;
+                io_write_en <= 0;
+                data_read <= bus_data_read;
 
             end
 
-
-
-
-
-        
+            default: begin
+                bus_ready <= 1'b1;
+                bus_addr <= 0;
+                io_read_en <= 0;
+                io_write_en <= 0;
+            end
+        endcase
     end
 
 
@@ -67,18 +97,23 @@ module SYS_BUS (
     // state transitions //
     always @(*) begin
 
-        state_nxt[s_idle] = state[s_idle]&(~ale_en) | state[s_comp]&(~ale_en);
-        state_nxt[s_alen] = state[s_idle]&(s_alen);
-        state_nxt[s_tras] = state[s_alen]&(bus_read_en);
-        state_nxt[s_recv] = state[s_alen]&(bus_write_en);
-        state_nxt[s_comp] = state[s_tras]&bus_ready | state[s_recv]&bus_ready;
+        state_nxt[s_idle] = state_now[s_idle]&(~ale_en) | state_now[s_comp]&(~ale_en);
+        state_nxt[s_alen] = state_now[s_idle]&(s_alen) | state_now[s_comp]&(s_alen);
+        state_nxt[s_tras] = state_now[s_alen]&(bus_read_en);
+        state_nxt[s_recv] = state_now[s_alen]&(bus_write_en);
+        state_nxt[s_comp] = state_now[s_tras]|state_now[s_recv];
         
     end
 
     always @(posedge clk) begin
 
         if(rst) begin
-            data_output <= 0;
+            bus_ready <= 1'b1;
+            bus_addr <= 0;
+            io_read_en <= 0;
+            io_write_en <= 0;
+            data_read <= 0;
+
             state_now <= 5'b00001; // 1-hot, configurable. //
         end
 
@@ -94,6 +129,16 @@ endmodule
 
 
 
+
+
+
+
+
+
+
+
+
+//  ******************************* ABSTRACT ****************************** //
 // Data Line BUS. //
 module DL_BUS (
     input clk,
