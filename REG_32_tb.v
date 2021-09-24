@@ -1,14 +1,13 @@
 `timescale 1 ns / 100 ps
 
-`define BYTE_WIDTH 8
 `define REG_LENGTH 32
-`define ADDR_LEN_4 4
+`define REG_ADDR_LEN_4 4
 
 module REG_32_tb();
   
   reg clk, rst;
   reg read_en, write_en;
-  reg [`ADDR_LEN_4 - 1 : 0] addr;
+  reg [`REG_ADDR_LEN_4 - 1 : 0] addr;
   reg [`REG_LENGTH - 1 : 0] write_data;
   wire [`REG_LENGTH - 1 : 0] read_data;
   

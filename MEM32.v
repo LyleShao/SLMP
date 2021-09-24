@@ -1,6 +1,6 @@
 `define MEM_WIDTH 8
 `define MEM_DEPTH 8
-`define WORD_NUMB 256
+`define MEM_WORD_NUMB 256
 
 
 module MEM_256bytes (
@@ -14,7 +14,7 @@ module MEM_256bytes (
     output reg [`MEM_WIDTH - 1 : 0] read_out
 );
 
-    reg [`MEM_WIDTH - 1 : 0] mem_array [`WORD_NUMB - 1 : 0];
+    reg [`MEM_WIDTH - 1 : 0] mem_array [`MEM_WORD_NUMB - 1 : 0];
 
 
     always @(*) begin
@@ -27,8 +27,10 @@ module MEM_256bytes (
         else if (read_en)
             read_out = mem_array[addr];
 
-        else
+        else 
             read_out = {`MEM_WIDTH{1'b0}};
+
+        // intended latch here. //
     
     end
 

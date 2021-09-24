@@ -1,13 +1,13 @@
 `define REG_LENGTH 32
 `define REG_NUMBER 16
-`define ADDR_LEN_4 4
+`define REG_ADDR_LEN_4 4
 
 module REG_32 (
 		input clk,
 		input rst,
 		input read_en,
 		input write_en,
-		input [`ADDR_LEN_4 - 1 : 0] addr,
+		input [`REG_ADDR_LEN_4 - 1 : 0] addr,
 		input [`REG_LENGTH - 1 : 0] write_data,
 		output reg [`REG_LENGTH - 1 : 0] read_data
 		

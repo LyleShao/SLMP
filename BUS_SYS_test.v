@@ -1,32 +1,37 @@
 // 400 Mbps System Bus //
+
 `include "MEM32.v"
-
-`define ADDR_BUS_WIDTH 8  // this should be equal to memory depth. //
-`define MEM_WIDTH 8
-`define MEM_DEPTH 8
-
+`include "def.v"
 
 
 module SYS_BUS_TEST (
 
+//********************* interface with controller. ************************//
     input clk,
     input rst,
     input ale_en,
     input bus_read_en,
     input bus_write_en,
-    input [`MEM_DEPTH - 1 : 0] addr_input,
+    input [`BUS_ADDR_WIDTH - 1 : 0] addr_input,
     input [`MEM_WIDTH - 1 : 0] data_write,
     output reg [`MEM_WIDTH - 1 : 0] data_read,
 
 
-    // Virtual //
-    output reg [4:0] state_now,
+//********************** interface with IO devices. ***********************//
+    input [`MEM_WIDTH - 1 : 0] bus_data_read_premux [`BUS_IO_NUM - 1 : 0],
+    output reg [`MEM_DEPTH - 1 : 0] bus_addr, // the address for IO data //
+    output reg [`BUS_IO_NUM - 1 : 0] io_read_en,
+    output reg [`BUS_IO_NUM - 1 : 0] io_write_en,
+    output reg [`MEM_WIDTH - 1 : 0] bus_data_write,
+
+
+//*********************** for simulation outputs **************************//
+    output reg [4:0] state_now, 
     output reg [4:0] state_nxt,
     output reg bus_ready,
-    output reg [`MEM_DEPTH - 1 : 0] bus_addr,
-    output reg io_write_en,
-    output reg io_read_en,
-    output reg [`MEM_WIDTH - 1 : 0] bus_data_write
+    output reg [`BUS_ADDR_WIDTH - 1 : `MEM_DEPTH] io_addr, // the address of IO //
+    output reg [`MEM_WIDTH - 1 : 0] bus_data_read_postmux
+
 );
 
     parameter s_idle = 0;
@@ -35,63 +40,51 @@ module SYS_BUS_TEST (
     parameter s_recv = 3;
     parameter s_comp = 4;
 
-    wire [`MEM_WIDTH - 1 : 0] bus_data_read;
-    reg [`MEM_WIDTH - 1 : 0] bus_data_read_latch;
-
-    MEM_256bytes MEM_MAIN (
-        .addr(bus_addr),
-        .write_en(io_write_en),
-        .read_en(io_read_en),
-        .write_in(bus_data_write),
-        .read_out(bus_data_read)
-
-        );
-
-
     always @(*) begin
-        
+
         case (state_now)
             5'b00001: begin // idle state //
                 bus_ready <= 1'b1;
                 bus_addr <= {`MEM_DEPTH{1'b0}};
-                io_read_en <= 0;
-                io_write_en <= 0;
+                io_addr <= {(`BUS_ADDR_WIDTH - `MEM_DEPTH){1'b0}};
+                io_read_en <= {`BUS_IO_NUM{1'b0}};
+                io_write_en <= {`BUS_IO_NUM{1'b0}};
             end
 
             5'b00010: begin
                 bus_ready <= 1'b0;
-                bus_addr <= addr_input;
-                io_read_en <= state_nxt[s_tras];
-                io_write_en <= state_nxt[s_recv];
+                bus_addr <= addr_input[`MEM_DEPTH - 1 : 0];
+                io_addr <= addr_input[`BUS_ADDR_WIDTH - 1 : `MEM_DEPTH];
             end
 
             5'b00100: begin // read data from IO. //
                 bus_ready <= 1'b0;
-                bus_data_read_latch <= bus_data_read;
+                io_read_en[io_addr] <= state_now[s_tras];
+                bus_data_read_postmux <= bus_data_read_premux[io_addr];
             end
 
             5'b01000: begin // write data to IO. //
                 bus_ready <= 1'b0;
+                io_write_en[io_addr] <= state_now[s_recv];
                 bus_data_write <= data_write;
             end
 
             5'b10000: begin
-                data_read <= bus_data_read_latch;
+                data_read <= bus_data_read_postmux;
                 bus_ready <= 1'b1;
-                io_read_en <= 0;
-                io_write_en <= 0;
+                io_read_en <= {`BUS_IO_NUM{1'b0}};
+                io_write_en <= {`BUS_IO_NUM{1'b0}};
 
             end
 
             default: begin
                 bus_ready <= 1'b1;
-                bus_addr <= {`MEM_DEPTH{1'b0}};
-                io_read_en <= 0;
-                io_write_en <= 0;
+                bus_addr <= {`BUS_ADDR_WIDTH{1'b0}};
+                io_read_en <= {`BUS_IO_NUM{1'b0}};
+                io_write_en <= {`BUS_IO_NUM{1'b0}};
             end
         endcase
     end
-
 
 
     // state transitions //
@@ -109,7 +102,7 @@ module SYS_BUS_TEST (
 
         if(rst) begin
             bus_ready <= 1'b1;
-            bus_addr <= {`MEM_DEPTH{1'b0}};
+            bus_addr <= {`BUS_ADDR_WIDTH{1'b0}};
             io_read_en <= 0;
             io_write_en <= 0;
             data_read <= {`MEM_WIDTH{1'b0}};
@@ -122,7 +115,5 @@ module SYS_BUS_TEST (
         end
 
     end
-
-
 
 endmodule

@@ -1,24 +1,29 @@
 // 400 Mbps System Bus //
 
 `include "MEM32.v"
-
-`define ADDR_BUS_WIDTH 8  // this should be equal to memory depth. //
-`define MEM_WIDTH 8
-`define MEM_DEPTH 8
-
+`include "def.v"
 
 
 module SYS_BUS (
-// THINK ABOUT A INTERRUPT-DRIVEN STATE MACHINE. //
 
+//********************* interface with controller. ************************//
     input clk,
     input rst,
     input ale_en,
     input bus_read_en,
     input bus_write_en,
-    input [`MEM_DEPTH - 1 : 0] addr_input,
+    input [`BUS_ADDR_WIDTH - 1 : 0] addr_input,
     input [`MEM_WIDTH - 1 : 0] data_write,
-    output reg [`MEM_WIDTH - 1 : 0] data_read
+    output reg [`MEM_WIDTH - 1 : 0] data_read,
+
+
+//********************** interface with IO devices. ***********************//
+    input [`MEM_WIDTH - 1 : 0] bus_data_read_premux [`BUS_IO_NUM - 1 : 0],
+    output reg [`MEM_DEPTH - 1 : 0] bus_addr, // the address for IO data //
+    output reg [`BUS_IO_NUM - 1 : 0] io_read_en,
+    output reg [`BUS_IO_NUM - 1 : 0] io_write_en,
+    output reg [`MEM_WIDTH - 1 : 0] bus_data_write
+
 );
 
     parameter s_idle = 0;
@@ -27,75 +32,59 @@ module SYS_BUS (
     parameter s_recv = 3;
     parameter s_comp = 4;
 
-
+//********************** Internal Registers ***********************//
+    reg bus_ready;
     reg [4:0] state_now; 
     reg [4:0] state_nxt;
-    reg bus_ready;
-
-    // registered interface with memory. //
-    reg [`MEM_DEPTH - 1 : 0] bus_addr;
-    reg io_write_en;
-    reg io_read_en;
-    reg [`MEM_WIDTH - 1 : 0] bus_data_write;
-    reg [`MEM_WIDTH - 1 : 0] bus_data_read_latch;
-
-    wire [`MEM_WIDTH - 1 : 0] bus_data_read;
-
-
-    // Memory Array(s) Instantiated Here //
-    MEM_256bytes MEM_MAIN (
-        .addr(bus_addr),
-        .write_en(io_write_en),
-        .read_en(io_read_en),
-        .write_in(bus_data_write),
-        .read_out(bus_data_read)
-        );
+    reg [`BUS_ADDR_WIDTH - 1 : `MEM_DEPTH] io_addr;
+    reg [`MEM_WIDTH - 1 : 0] bus_data_read_postmux;
 
 
     always @(*) begin
-        
+
         case (state_now)
             5'b00001: begin // idle state //
                 bus_ready <= 1'b1;
                 bus_addr <= {`MEM_DEPTH{1'b0}};
-                io_read_en <= 0;
-                io_write_en <= 0;
+                io_addr <= {(`BUS_ADDR_WIDTH - `MEM_DEPTH){1'b0}};
+                io_read_en <= {`BUS_IO_NUM{1'b0}};
+                io_write_en <= {`BUS_IO_NUM{1'b0}};
             end
 
             5'b00010: begin
                 bus_ready <= 1'b0;
-                bus_addr <= addr_input;
-                io_read_en <= state_nxt[s_tras];
-                io_write_en <= state_nxt[s_recv];
+                bus_addr <= addr_input[`MEM_DEPTH - 1 : 0];
+                io_addr <= addr_input[`BUS_ADDR_WIDTH - 1 : `MEM_DEPTH];
             end
 
             5'b00100: begin // read data from IO. //
                 bus_ready <= 1'b0;
-                bus_data_read_latch <= bus_data_read;
+                io_read_en[io_addr] <= state_now[s_tras];
+                bus_data_read_postmux <= bus_data_read_premux[io_addr];
             end
 
             5'b01000: begin // write data to IO. //
                 bus_ready <= 1'b0;
+                io_write_en[io_addr] <= state_now[s_recv];
                 bus_data_write <= data_write;
             end
 
             5'b10000: begin
-                data_read <= bus_data_read_latch;
+                data_read <= bus_data_read_postmux;
                 bus_ready <= 1'b1;
-                io_read_en <= 0;
-                io_write_en <= 0;
+                io_read_en <= {`BUS_IO_NUM{1'b0}};
+                io_write_en <= {`BUS_IO_NUM{1'b0}};
 
             end
 
             default: begin
                 bus_ready <= 1'b1;
-                bus_addr <= {`MEM_DEPTH{1'b0}};
-                io_read_en <= 0;
-                io_write_en <= 0;
+                bus_addr <= {`BUS_ADDR_WIDTH{1'b0}};
+                io_read_en <= {`BUS_IO_NUM{1'b0}};
+                io_write_en <= {`BUS_IO_NUM{1'b0}};
             end
         endcase
     end
-
 
 
     // state transitions //
@@ -113,7 +102,7 @@ module SYS_BUS (
 
         if(rst) begin
             bus_ready <= 1'b1;
-            bus_addr <= {`MEM_DEPTH{1'b0}};
+            bus_addr <= {`BUS_ADDR_WIDTH{1'b0}};
             io_read_en <= 0;
             io_write_en <= 0;
             data_read <= {`MEM_WIDTH{1'b0}};
@@ -127,94 +116,4 @@ module SYS_BUS (
 
     end
 
-
-
 endmodule
-
-
-
-
-
-
-
-
-
-
-
-
-//  ******************************* ABSTRACT ****************************** //
-// Data Line BUS. //
-module DL_BUS (
-    input clk,
-    input rst,
-    input ale_en,
-    input read_en,
-    input write_en,
-    input [`MEM_WIDTH - 1 : 0] dl_bus_write_in,
-    output reg [`MEM_WIDTH - 1 : 0] dl_bus_read_out
-);
-
-    reg [`MEM_WIDTH - 1 : 0] dl_bus_data;
-
-    always @(posedge clk ) begin
-
-        if (rst) begin
-            dl_bus_data <= {`MEM_WIDTH{1'b0}};
-            dl_bus_read_out <= {`MEM_WIDTH{1'b0}};
-        end
-
-        else if (ale_en) begin
-            dl_bus_data <= {`MEM_WIDTH{1'b0}};
-            dl_bus_read_out <= {`MEM_WIDTH{1'b0}};
-        end
-
-        else if (write_en) begin
-            dl_bus_data <= dl_bus_write_in;
-            dl_bus_read_out <= {`MEM_WIDTH{1'b0}};
-        end
-
-        else if (read_en)
-            dl_bus_read_out <= dl_bus_data;
-     
-    end
-
-endmodule
-
-
-
-// Address line BUS. //
-module AL_BUS (
-    
-    input clk, 
-    input rst,
-    input ale_en,
-    input read_en,
-    input [`ADDR_BUS_WIDTH -1 : 0] al_bus_write_in,
-    output reg  [`ADDR_BUS_WIDTH -1 : 0] al_bus_read_out
-);
-    reg [`ADDR_BUS_WIDTH -1 : 0] al_bus_data;
-
-always @(posedge clk) begin
-
-    if (rst) begin
-        al_bus_data <= {`ADDR_BUS_WIDTH{1'b0}};
-        al_bus_read_out <= {`ADDR_BUS_WIDTH{1'b0}};
-    end
-    
-    else if (~read_en & ale_en) begin
-        al_bus_data <= al_bus_write_in;
-        al_bus_read_out <= {`ADDR_BUS_WIDTH{1'b0}};        
-    end
-
-
-    else if (read_en & ~ale_en) begin
-        al_bus_read_out <= al_bus_data;        
-    end
-
-    else
-        al_bus_read_out <= {`ADDR_BUS_WIDTH{1'b0}};
-end
-
-endmodule
-
-
