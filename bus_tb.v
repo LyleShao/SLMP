@@ -44,7 +44,10 @@ module bus_tb();
   );
   
    initial begin
+   $dumpfile("dump.vcd");
+   $dumpvars;
    $display($time, " << Starting the Simulation >>");
+
      
    clk = 0;
    rst = 0;
@@ -87,6 +90,8 @@ module bus_tb();
        addr_input = 8'h00;
        
      
+   #100 $finish;
+   
    end
 
 

@@ -42,6 +42,7 @@ module SYS_BUS (
     wire [`MEM_WIDTH - 1 : 0] bus_data_read;
 
 
+    // Memory Array(s) Instantiated Here //
     MEM_256bytes MEM_MAIN (
         .addr(bus_addr),
         .write_en(io_write_en),

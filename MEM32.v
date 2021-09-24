@@ -27,7 +27,8 @@ module MEM_256bytes (
         else if (read_en)
             read_out = mem_array[addr];
 
-        else read_out = {`MEM_WIDTH{1'b0}};
+        else
+            read_out = {`MEM_WIDTH{1'b0}};
     
     end
 
